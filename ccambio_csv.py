@@ -73,5 +73,5 @@ def main():
 if __name__ == "__main__":
     while True:
         main()
-        if input("Desea realizar otro cambio? (s/n): ").lower() != "s":
+        if input("Desea realizar otro cambio? (S/N): ").lower() != "s":
             break
