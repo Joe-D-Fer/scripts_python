@@ -7,55 +7,55 @@ MONEDAS = ["ARS", "PEN", "BRL", "COP", "USD", "EUR", "GBP", "JPY"]
 # Denominaciones CLP
 EFECTIVO = [20000, 10000, 5000, 2000, 1000, 500, 100, 50, 10]
 
-
-def fetch_rates_from_csv(file_path="rates.csv"):
-    rates = {}
+# lee el archivo csv y devuelve un diccionario con dos claves: "timestamp" y "tasas".
+def fetch_tasas_from_csv(file_path="tasas.csv"):
+    tasas = {}
 
     with open(file_path, mode="r", newline="", encoding="utf-8") as file:
         reader = csv.DictReader(file)
 
         for row in reader:
-            rates[row["currency"]] = float(row["clp_per_unit"])
+            tasas[row["currency"]] = float(row["clp_per_unit"])
 
     return {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "rates": rates
+        "timestamp": datetime.now(timezone.utc).isoformat(), # marca la hora en que se obtuvo los datos de cambio
+        "tasas": tasas
     }
 
+# dado que las tasas del archivo ya están en clp, sólo hay que multiplicar
+def convert_to_clp(data_archivo, moneda, monto):
+    tasas = data_archivo["tasas"]
+    return int(monto * tasas[moneda])
 
-def convert_to_clp(cambios, moneda, monto):
-    rates = cambios["rates"]
-    return int(monto * rates[moneda])
-
-
+# obtiene el desglose de efectivo
 def breakdown_clp(monto):
     restante = monto
-    desglose = {}
+    desglose = {} #diccionario vacío para almacenar el desglose
 
     for d in EFECTIVO:
-        cantidad = restante // d
+        cantidad = restante // d #division entera sin decimales
         if cantidad > 0:
-            desglose[d] = int(cantidad)
+            desglose[d] = int(cantidad) # se usa el billete/moneda como clave y se asigna con la cantidad
             restante -= d * cantidad
 
     return desglose, restante
 
-
+# proceso principal
 def main():
-    print("=== Conversor a CLP (CSV directo CLP rates) ===\n")
+    print("=== Conversor a CLP (CSV directo CLP tasas) ===\n")
 
-    cambios = fetch_rates_from_csv()
+    data_archivo = fetch_tasas_from_csv()
 
     print("Monedas disponibles:")
-    for i, m in enumerate(MONEDAS, 1):
-        print(f"{i}. {m}")
+    for i, valor in enumerate(MONEDAS, 1): #recorre lista MONEDAS con índice i=1 y valor al mismo tiempo.
+        print(f"{i}. {valor}")
 
     opcion = int(input("\nSelecciona moneda (número): "))
     moneda = MONEDAS[opcion - 1]
 
     monto = float(input(f"Ingrese monto en {moneda}: "))
 
-    clp = convert_to_clp(cambios, moneda, monto)
+    clp = convert_to_clp(data_archivo, moneda, monto)
 
     desglose, sobrante = breakdown_clp(clp)
 
@@ -68,7 +68,7 @@ def main():
 
     print(f"\nSobrante (no entregado): {sobrante} CLP")
 
-
+#este if se usa para evitar la ejecución del main en caso de querer importar este archivo como módulo
 if __name__ == "__main__":
     while True:
         main()
