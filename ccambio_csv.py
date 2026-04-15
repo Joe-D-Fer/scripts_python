@@ -37,7 +37,8 @@ def breakdown_clp(monto):
         if cantidad > 0:
             desglose[d] = int(cantidad) # se usa el billete/moneda como clave y se asigna con la cantidad
             restante -= d * cantidad
-
+        if restante == 0: #evita iteraciones innecesarias
+            break
     return desglose, restante
 
 # proceso principal
