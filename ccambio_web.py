@@ -8,6 +8,7 @@ MONEDAS = ["ARS", "PEN", "BRL", "COP", "USD", "EUR", "GBP", "JPY"]
 EFECTIVO = [20000, 10000, 5000, 2000, 1000, 500, 100, 50, 10]
 
 def fetch_rates(base="USD"):
+    #se usará la base en Dólar Americano USD como intermediario
     url = f"https://api.exchangerate-api.com/v4/latest/{base}"
     data = requests.get(url).json()
 
