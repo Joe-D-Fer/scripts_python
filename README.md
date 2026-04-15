@@ -1,4 +1,6 @@
-dependencia "requests" se instala con: 
+# Dependencias
+Librería `requests` en `ccambio_web.py`  
+Instálala con: 
 ```
 pip install requests
 ```
