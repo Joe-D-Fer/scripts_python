@@ -7,7 +7,7 @@ MONEDAS = ["ARS", "PEN", "BRL", "COP", "USD", "EUR", "GBP", "JPY"]
 # Denominaciones CLP
 EFECTIVO = [20000, 10000, 5000, 2000, 1000, 500, 100, 50, 10]
 
-# lee el archivo csv y devuelve un diccionario con dos claves: "timestamp" y "tasas".
+# lee el archivo csv y devuelve un diccionario con dos claves: "tasas".
 def fetch_tasas_from_csv(file_path="tasas.csv"):
     tasas = {}
 
@@ -18,7 +18,6 @@ def fetch_tasas_from_csv(file_path="tasas.csv"):
             tasas[row["currency"]] = float(row["clp_per_unit"])
 
     return {
-        "timestamp": datetime.now(timezone.utc).isoformat(), # marca la hora en que se obtuvo los datos de cambio
         "tasas": tasas
     }
 
@@ -69,9 +68,7 @@ def main():
 
     print(f"\nSobrante (no entregado): {sobrante} CLP")
 
-#este if se usa para evitar la ejecución del main en caso de querer importar este archivo como módulo
-if __name__ == "__main__":
-    while True:
-        main()
-        if input("Desea realizar otro cambio? (S/N): ").lower() != "s":
-            break
+while True:
+    main()
+    if input("Desea realizar otro cambio? (S/N): ").lower() != "s":
+        break
