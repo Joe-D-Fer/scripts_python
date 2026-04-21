@@ -40,4 +40,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    salir= False
+    while not salir:
+        main()
+        if input("continuar (s/n):")=="n": salir=True
