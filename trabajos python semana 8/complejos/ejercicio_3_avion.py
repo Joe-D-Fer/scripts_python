@@ -155,10 +155,23 @@ class SeatingSystem:
             print("Entrada inválida. Debe ingresar un número.")
 
     def mostrar(self):
-        # imprime estado de toda la matriz
+        print("\n=== MAPA DE ASIENTOS ===\n")
+
+        # encabezado con letras de columnas (A, B, C...)
+        mid = self.columnas // 2
+
+        izquierda = " ".join(f"{chr(65 + j):^2}" for j in range(mid))
+        derecha = " ".join(f"{chr(65 + j):^2}" for j in range(mid, self.columnas))
+
+        print("           " + izquierda + "  ||   " + derecha)
+        print("        " + "-" * (self.columnas * 5))
+
         for i, fila in enumerate(self.asientos):
-            estados = [str(asiento) for asiento in fila]
-            print(f"{f'Fila {i+1}:':<12}{estados}")
+            izquierda = "  ".join(str(a) for a in fila[:self.columnas // 2])
+            derecha = "  ".join(str(a) for a in fila[self.columnas // 2:])
+
+            # espacio central simula el pasillo del avión
+            print(f"Fila {i+1:<2} |  {izquierda}   ||   {derecha}  |")
 
     def listar_pasajeros(self):
         print("\n=== LISTADO DE PASAJEROS ===")
