@@ -1,11 +1,12 @@
 class Seat:
+    # Estados posibles del asiento
     LIBRE = 'L'
     RESERVADO = 'R'
     OCUPADO = 'O'
 
     def __init__(self):
-        self.estado = Seat.LIBRE
-        self.nombre = None
+        self.estado = Seat.LIBRE  # estado inicial
+        self.nombre = None        # pasajero asignado
 
     def reservar(self, nombre):
         if self.estado == Seat.LIBRE:
@@ -22,7 +23,7 @@ class Seat:
 
     def liberar(self):
         self.estado = Seat.LIBRE
-        self.nombre = None
+        self.nombre = None  # se limpia el pasajero
 
     def __str__(self):
         return self.estado
@@ -32,6 +33,7 @@ class SeatingSystem:
     def __init__(self, filas=10, columnas=6):
         self.filas = filas
         self.columnas = columnas
+        # matriz de asientos
         self.asientos = [
             [Seat() for _ in range(columnas)]
             for _ in range(filas)
@@ -53,17 +55,17 @@ class SeatingSystem:
                 print("Opción inválida")
                 return
 
-            # Map option to preferred columns
-            if opcion == 1:      # ventana
-                columnas_pref = [0, 5]
-            elif opcion == 2:    # pasillo
-                columnas_pref = [2, 3]
-            elif opcion == 3:    # medio
-                columnas_pref = [1, 4]
-            else:                # cualquiera
-                columnas_pref = list(range(self.columnas))
+            # columnas según preferencia
+            if opcion == 1:
+                columnas_pref = [0, 5]  # ventana
+            elif opcion == 2:
+                columnas_pref = [2, 3]  # pasillo
+            elif opcion == 3:
+                columnas_pref = [1, 4]  # medio
+            else:
+                columnas_pref = list(range(self.columnas))  # cualquiera
 
-            # Buscar primer asiento disponible
+            # búsqueda del primer asiento libre
             for i in range(self.filas):
                 for j in columnas_pref:
                     if self.asientos[i][j].estado == Seat.LIBRE:
@@ -82,7 +84,7 @@ class SeatingSystem:
 
             print("\n=== RESERVAS PENDIENTES ===")
 
-            # Collect and display reservas en estado 'R'
+            # listar reservas pendientes
             contador = 1
             for i in range(self.filas):
                 for j in range(self.columnas):
@@ -105,6 +107,7 @@ class SeatingSystem:
 
             fila, columna = pendientes[opcion - 1]
 
+            # confirmar reserva
             if self.asientos[fila][columna].ocupar():
                 print(f"Asiento confirmado para {self.asientos[fila][columna].nombre}")
             else:
@@ -124,6 +127,7 @@ class SeatingSystem:
                 for j in range(self.columnas):
                     asiento = self.asientos[i][j]
 
+                    # solo reservados u ocupados
                     if asiento.estado in (Seat.RESERVADO, Seat.OCUPADO):
                         estado_txt = "Reservado" if asiento.estado == Seat.RESERVADO else "Ocupado"
                         print(f"{contador}. {asiento.nombre} - Fila {i+1}, Columna {j+1} ({estado_txt})")
@@ -151,6 +155,7 @@ class SeatingSystem:
             print("Entrada inválida. Debe ingresar un número.")
 
     def mostrar(self):
+        # imprime estado de toda la matriz
         for i, fila in enumerate(self.asientos):
             estados = [str(asiento) for asiento in fila]
             print(f"{f'Fila {i+1}:':<12}{estados}")
@@ -164,6 +169,7 @@ class SeatingSystem:
             for j in range(self.columnas):
                 asiento = self.asientos[i][j]
 
+                # mostrar solo ocupados o reservados
                 if asiento.estado in (Seat.RESERVADO, Seat.OCUPADO):
                     estado_txt = "Reservado" if asiento.estado == Seat.RESERVADO else "Ocupado"
                     print(f"Nombre: {asiento.nombre} | Fila: {i+1} | Columna: {j+1} | Estado: {estado_txt}")
@@ -178,7 +184,7 @@ class SeatingSystem:
         ocupados = 0
         reservas_pendientes = 0
 
-        # Por tipo
+        # agrupación por tipo de asiento
         tipos = {
             "ventana": {"cols": [0, 5], "ocupados": 0, "total": 0},
             "medio": {"cols": [1, 4], "ocupados": 0, "total": 0},
@@ -189,20 +195,18 @@ class SeatingSystem:
             for j in range(self.columnas):
                 asiento = self.asientos[i][j]
 
-                # Contadores generales
                 if asiento.estado == Seat.OCUPADO:
                     ocupados += 1
                 elif asiento.estado == Seat.RESERVADO:
                     reservas_pendientes += 1
 
-                # Determinar tipo de asiento
+                # clasificar por tipo de asiento
                 for tipo, data in tipos.items():
                     if j in data["cols"]:
                         data["total"] += 1
                         if asiento.estado == Seat.OCUPADO:
                             data["ocupados"] += 1
 
-        # Porcentaje total
         porcentaje_total = (ocupados / total_asientos) * 100
 
         print("\n=== ESTADÍSTICAS ===")
@@ -223,13 +227,13 @@ class SeatingSystem:
                 print("Cantidad inválida")
                 return
 
-            # Pedir nombres individuales
+            # nombres del grupo
             nombres = []
             for i in range(cantidad):
                 nombre = input(f"Ingrese nombre del pasajero {i+1}: ")
                 nombres.append(nombre)
 
-            # Buscar asientos consecutivos
+            # buscar asientos consecutivos
             for i in range(self.filas):
                 consecutivos = 0
                 inicio = 0
@@ -242,14 +246,11 @@ class SeatingSystem:
                         consecutivos += 1
 
                         if consecutivos == cantidad:
-                            # Asignar cada nombre a cada asiento
+                            # asignación en bloque
                             for k in range(cantidad):
                                 self.asientos[i][inicio + k].reservar(nombres[k])
 
-                            print(
-                                f"Grupo reservado en Fila {i+1}, "
-                                f"Columnas {inicio+1} a {inicio+cantidad}"
-                            )
+                            print(f"Grupo reservado en Fila {i+1}, Columnas {inicio+1} a {inicio+cantidad}")
                             return
                     else:
                         consecutivos = 0
@@ -258,6 +259,7 @@ class SeatingSystem:
 
         except ValueError:
             print("Entrada inválida")
+
 
 def menu_principal(sistema):
     while True:
@@ -269,47 +271,40 @@ def menu_principal(sistema):
         print("5. Reservar grupo")
         print("6. Listar pasajeros")
         print("7. Ver estadísticas")
-
         print("8. Salir")
 
         try:
             opcion = int(input("Seleccione una opción: "))
+            print("\n")
 
             if opcion == 1:
                 sistema.reservar()
-
             elif opcion == 2:
                 sistema.ocupar()
-
             elif opcion == 3:
                 sistema.liberar()
-
             elif opcion == 4:
                 sistema.mostrar()
-
             elif opcion == 5:
                 sistema.reservar_grupo()
-
             elif opcion == 6:
                 sistema.listar_pasajeros()
-
             elif opcion == 7:
                 sistema.estadisticas()
-
             elif opcion == 8:
                 print("Saliendo del sistema...")
                 break
-
             else:
                 print("Opción inválida")
 
         except ValueError:
             print("Entrada inválida. Ingrese un número.")
 
+
 def main():
     sistema = SeatingSystem()
-
     menu_principal(sistema)
 
-if __name__== "__main__":
+
+if __name__ == "__main__":
     main()
