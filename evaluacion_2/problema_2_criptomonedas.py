@@ -1,5 +1,6 @@
 import requests
 import os
+import subprocess
 import msvcrt
 import time
 from collections import deque
@@ -7,7 +8,8 @@ from colorama import Fore, Style, init
 
 
 def clear_screen():
-    os.system('cls' if os.name == 'nt' else 'clear')
+    command = 'cls' if os.name == 'nt' else 'clear'
+    subprocess.run(command, shell=True)
 
 def multi_select_menu(options, title="Seleccione sus opciones"):
     """
@@ -54,7 +56,7 @@ def multi_select_menu(options, title="Seleccione sus opciones"):
             ]
 
 
-def fetch_coingecko(monedas, retries=3, delay=5):
+def fetch_coingecko(monedas, retries=3, delay=15):
     """
     Obtiene el precio en USD de una lista de criptomonedas usando CoinGecko.
 
@@ -79,7 +81,7 @@ def fetch_coingecko(monedas, retries=3, delay=5):
         "vs_currencies": "usd"
     }
 
-    for _ in range(retries):
+    for intento in range(retries):
         try:
             response = requests.get(url, params=params)
             response.raise_for_status()
@@ -93,8 +95,11 @@ def fetch_coingecko(monedas, retries=3, delay=5):
 
         except requests.exceptions.HTTPError as e:
             if response.status_code == 429:
-                print(f'Error 429: "Too Many Requests for url". Esperando {delay} segundos...')
-                time.sleep(delay)
+                if intento+1==retries:
+                    print(f'Intento({intento+1}) >>> Error 429: "Too Many Requests for url".')
+                else:
+                    print(f'Intento({intento+1}) >>> Error 429: "Too Many Requests for url". Esperando {delay} segundos...')
+                    time.sleep(delay)
             else:
                 print(f"HTTP error: {e}")
                 break
@@ -114,34 +119,35 @@ def main():
         ("Binance Coin", "binancecoin"),
         ("Avalanche", "avalanche-2")
     ]
-    ids = multi_select_menu(monedas, "Seleccione sus monedas:")
-    precios = fetch_coingecko(ids)
-    
-    # Umbral
-    clear_screen()
-    umbral = float(input("Ingrese el umbral porcentual: "))
-
-    # Estructuras
-    historial = {moneda: deque(maxlen=10) for moneda in precios}
-    alertas = {moneda: 0 for moneda in precios}
-    precio_inicial = {}
-
-    # Inicializar historial
-    for moneda, precio in precios.items():
-        historial[moneda].append(precio)
-        precio_inicial[moneda] = precio
-
     try:
+        ids = multi_select_menu(monedas, "Seleccione sus monedas:")
+        precios = fetch_coingecko(ids)
+        if precios == None: raise Exception;
+        
+        # Umbral
+        clear_screen()
+        umbral = float(input("Ingrese el umbral porcentual: "))
+
+        # Estructuras
+        historial = {moneda: deque(maxlen=10) for moneda in precios}
+        alertas = {moneda: 0 for moneda in precios}
+        precio_inicial = {}
+
+        # Inicializar historial
+        for moneda, precio in precios.items():
+            historial[moneda].append(precio)
+            precio_inicial[moneda] = precio
+
+    
         while True:
             clear_screen()
             precios = fetch_coingecko(ids)
             
-            if precios == None:
-                raise Exception
+            if precios == None: raise Exception;
             
             clear_screen()
             
-            now = time.ctime(time.time())
+            now = time.strftime("%d/%m/%Y %H:%M:%S", time.localtime())
             print(f"=== Monitor de criptomonedas - {now} ===")
 
             for moneda, precio in precios.items():
@@ -151,28 +157,30 @@ def main():
                 cola.append(precio)
 
                 # Mostrar precio actual
-                print(f"{moneda}{":":>15} USD {precio:>20,}")
 
-                # Solo calcular si hay suficientes datos
+                # Construcción de fila
+                precio_str = f"USD {precio:,.2f}"
+                variacion_str = ""
+
                 if len(cola) > 1:
                     precio_antiguo = cola[0]
                     variacion = ((precio - precio_antiguo) / precio_antiguo) * 100
 
-                    # Clasificación con if/elif/else
                     if abs(variacion) >= umbral:
                         alertas[moneda] += 1
 
                         if variacion > 0:
-                            print(Fore.GREEN + f"▲ Subida fuerte: {variacion:.2f}%")
+                            variacion_str = Fore.GREEN + f"▲ {variacion:>6.2f}%" + Style.RESET_ALL
                         elif variacion < 0:
-                            print(Fore.RED + f"▼ Bajada fuerte: {variacion:.2f}%")
-                    else:
-                        print(f"Sin cambios significativos: {variacion:.2f}%")
+                            variacion_str = Fore.RED + f"▼ {variacion:>6.2f}%" + Style.RESET_ALL
+                        else:
+                            variacion_str = f"{variacion:>7.2f}%"
 
-                print("-" * 40)
+                # Imprimir fila alineada
+                print(f"{moneda:<10} {precio_str:>20} {variacion_str:>25}")
 
-            print("Actualizando en 15 segundos... (Ctrl+C para salir)")
-            time.sleep(15)
+            print("Actualizando en 30 segundos... (Ctrl+C para salir)")
+            time.sleep(30)
 
     except KeyboardInterrupt:
         clear_screen()
