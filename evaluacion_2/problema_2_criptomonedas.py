@@ -6,7 +6,6 @@ import time
 from collections import deque
 from colorama import Fore, Style, init
 
-
 def clear_screen():
     command = 'cls' if os.name == 'nt' else 'clear'
     subprocess.run(command, shell=True)
@@ -55,8 +54,7 @@ def multi_select_menu(options, title="Seleccione sus opciones"):
                 if is_selected
             ]
 
-
-def fetch_coingecko(monedas, retries=3, delay=15):
+def fetch_coingecko(monedas, retries=3, delay=20):
     """
     Obtiene el precio en USD de una lista de criptomonedas usando CoinGecko.
 
@@ -109,6 +107,7 @@ def fetch_coingecko(monedas, retries=3, delay=15):
             break
 
     return None
+
 def main():
     clear_screen()
     monedas = [
@@ -150,34 +149,41 @@ def main():
             now = time.strftime("%d/%m/%Y %H:%M:%S", time.localtime())
             print(f"=== Monitor de criptomonedas - {now} ===")
 
-            for moneda, precio in precios.items():
+            for moneda, precio_str in precios.items():
                 cola = historial[moneda]
 
                 # Agregar nuevo precio (deque elimina automáticamente el más viejo)
-                cola.append(precio)
+                cola.append(precio_str)
 
                 # Mostrar precio actual
 
-                # Construcción de fila
-                precio_str = f"USD {precio:,.2f}"
+                # Inicializar columnas
                 variacion_str = ""
+                alerta_str = ""
 
                 if len(cola) > 1:
                     precio_antiguo = cola[0]
-                    variacion = ((precio - precio_antiguo) / precio_antiguo) * 100
+                    variacion = ((precio_str - precio_antiguo) / precio_antiguo) * 100
 
+                    # Columna variación
+                    if variacion >= 0.05:
+                        variacion_str = Fore.GREEN + f"↑ {variacion:+6.2f}%" + Style.RESET_ALL
+                    elif variacion <= -0.05:
+                        variacion_str = Fore.RED + f"↓ {variacion:+6.2f}%" + Style.RESET_ALL
+                    else:
+                        variacion_str = f"→ {variacion:+6.2f}%"
+
+                    # --- COLUMNA ALERTA (SOLO SI SUPERA UMBRAL) ---
                     if abs(variacion) >= umbral:
                         alertas[moneda] += 1
 
                         if variacion > 0:
-                            variacion_str = Fore.GREEN + f"▲ {variacion:>6.2f}%" + Style.RESET_ALL
+                            alerta_str = Fore.GREEN + f"▲ ALERTA: subida superior al {umbral}%" + Style.RESET_ALL
                         elif variacion < 0:
-                            variacion_str = Fore.RED + f"▼ {variacion:>6.2f}%" + Style.RESET_ALL
-                        else:
-                            variacion_str = f"{variacion:>7.2f}%"
+                            alerta_str = Fore.RED + f"▼ ALERTA: bajada superior al {umbral}%" + Style.RESET_ALL
 
                 # Imprimir fila alineada
-                print(f"{moneda:<10} {precio_str:>20} {variacion_str:>25}")
+                print(f"{moneda:<12} {':':>3} {precio_str:>10} {variacion_str:>15} {alerta_str:>30}")
 
             print("Actualizando en 30 segundos... (Ctrl+C para salir)")
             time.sleep(30)
