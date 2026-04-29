@@ -7,19 +7,19 @@ from collections import deque
 from colorama import Fore, Style, init
 
 def clear_screen():
-    command = 'cls' if os.name == 'nt' else 'clear'
+    command = "cls" if os.name == "nt" else "clear"
     subprocess.run(command, shell=True)
+
 
 def multi_select_menu(options, title="Seleccione sus opciones"):
     """
     Menú multiselección.
 
-    Args:
-        options: Lista de tuplas de la forma:
-                 (display_name, api_id)
-
-    Returns:
-        list[str]: API IDs Seleccionadas
+    Controles:
+        ↑ ↓ : navegar
+        ESPACIO : seleccionar
+        ENTER : confirmar
+        ESC : salir
     """
     selected = [False] * len(options)
     cursor = 0
@@ -28,7 +28,7 @@ def multi_select_menu(options, title="Seleccione sus opciones"):
         clear_screen()
         print(title)
         print("-" * len(title))
-        print("Usa ↑ ↓ para navegar, ESPACIO para seleccionar, ENTER para confirmar.\n")
+        print("↑ ↓ Navegar | ESPACIO Seleccionar | ENTER Confirmar | ESC Salir\n")
 
         for i, (display_name, _) in enumerate(options):
             pointer = ">" if i == cursor else " "
@@ -37,42 +37,32 @@ def multi_select_menu(options, title="Seleccione sus opciones"):
 
         key = msvcrt.getch()
 
-        if key == b"\xe0":
+        if key == b"\xe0": # Prefijo de teclas especiales (flechas, Insert, Delete, etc.)
             key = msvcrt.getch()
-            if key == b"H":      # Up
+
+            if key == b"H": # Flecha Arriba
                 cursor = (cursor - 1) % len(options)
-            elif key == b"P":    # Down
+
+            elif key == b"P": # Flecha Abajo
                 cursor = (cursor + 1) % len(options)
 
-        elif key == b" ":
+        elif key == b" ": # Barra espaciadora
             selected[cursor] = not selected[cursor]
 
-        elif key == b"\r":
+        elif key == b"\r": # Enter
             return [
                 api_id
                 for (_, api_id), is_selected in zip(options, selected)
                 if is_selected
             ]
 
+        elif key == b"\x1b":  # Esc
+            return None
+        elif key == b'\x03':  # Ctrl+C
+            return None
+
+
 def fetch_coingecko(monedas, retries=3, delay=20):
-    """
-    Obtiene el precio en USD de una lista de criptomonedas usando CoinGecko.
-
-    Args:
-        monedas (list[str]): Lista de IDs de CoinGecko.
-            Ejemplo: ["bitcoin", "ethereum", "solana"]
-        retries (int): Número de intentos en caso de error.
-        delay (int): Segundos entre intentos.
-
-    Returns:
-        dict: Diccionario con los precios.
-            Ejemplo:
-            {
-                "bitcoin": 64000,
-                "ethereum": 3200,
-                "solana": 140
-            }
-    """
     url = "https://api.coingecko.com/api/v3/simple/price"
     params = {
         "ids": ",".join(monedas),
@@ -81,7 +71,7 @@ def fetch_coingecko(monedas, retries=3, delay=20):
 
     for intento in range(retries):
         try:
-            response = requests.get(url, params=params)
+            response = requests.get(url, params=params, timeout=10)
             response.raise_for_status()
 
             data = response.json()
@@ -93,118 +83,187 @@ def fetch_coingecko(monedas, retries=3, delay=20):
 
         except requests.exceptions.HTTPError as e:
             if response.status_code == 429:
-                if intento+1==retries:
-                    print(f'Intento({intento+1}) >>> Error 429: "Too Many Requests for url".')
-                else:
-                    print(f'Intento({intento+1}) >>> Error 429: "Too Many Requests for url". Esperando {delay} segundos...')
+                if intento + 1 < retries:
+                    print(
+                        f'Intento {intento + 1}: demasiadas solicitudes. '
+                        f'Reintentando en {delay} segundos...'
+                    )
                     time.sleep(delay)
+                else:
+                    print("Error: límite de solicitudes alcanzado.")
             else:
-                print(f"HTTP error: {e}")
+                print(f"HTTP Error: {e}")
                 break
 
         except requests.exceptions.RequestException as e:
-            print(f"Request fallida: {e}")
+            print(f"Error de conexión: {e}")
             break
 
     return None
 
-def main():
+
+def imprimir_resumen(historial, precio_inicial, alertas):
     clear_screen()
+    print("=== RESUMEN FINAL ===\n")
+
+    for moneda, cola in historial.items():
+        inicial = precio_inicial[moneda]
+        final = cola[-1]
+        variacion = ((final - inicial) / inicial) * 100
+
+        color = (
+            Fore.GREEN if variacion > 0
+            else Fore.RED if variacion < 0
+            else ""
+        )
+
+        print(f"{moneda.upper()}")
+        print(f"  Precio inicial : ${inicial:>15,.8f}")
+        print(f"  Precio final   : ${final:>15,.8f}")
+        print(f"  Variación total: {color}{variacion:>14.2f}%{Style.RESET_ALL}")
+        print(f"  Alertas        : {alertas[moneda]:>15}")
+        print("-" * 55)
+
+
+def main():
+    # Tiempo entre consultas
+    intervalo_request = 30
+    # Inicializar Colorama
+    init(autoreset=True)
+
     monedas = [
         ("Bitcoin", "bitcoin"),
         ("Ethereum", "ethereum"),
         ("Solana", "solana"),
-        ("Cardano", "cardano"),
         ("Binance Coin", "binancecoin"),
-        ("Avalanche", "avalanche-2")
+        ("Avalanche", "avalanche-2"),
+        ("Chainlink", "chainlink"),
+        ("Arbitrum", "arbitrum"),
+        ("Sui", "sui"),
+        ("Render", "render-token"),
+        ("Pepe", "pepe"),
     ]
-    try:
-        ids = multi_select_menu(monedas, "Seleccione sus monedas:")
-        precios = fetch_coingecko(ids)
-        if precios == None: raise Exception;
-        
-        # Umbral
-        clear_screen()
-        umbral = float(input("Ingrese el umbral porcentual: "))
 
-        # Estructuras
-        historial = {moneda: deque(maxlen=10) for moneda in precios}
-        alertas = {moneda: 0 for moneda in precios}
+    try:
+        titulo = "Seleccione sus criptomonedas"
+        while True:
+            ids = multi_select_menu(monedas, titulo)
+
+            if ids is None:
+                print("\nPrograma cancelado por el usuario.")
+                return
+
+            if not ids:
+                titulo="Debe seleccionar al menos una criptomoneda."
+            else:
+                break
+
+        precios = fetch_coingecko(ids)
+
+        if precios is None:
+            print("No fue posible obtener los precios iniciales.")
+            return
+
+        clear_screen()
+        umbral = float(input("Ingrese el umbral porcentual de alerta: "))
+
+        historial = {moneda: deque(maxlen=10) for moneda in ids}
+        alertas = {moneda: 0 for moneda in ids}
         precio_inicial = {}
 
-        # Inicializar historial
         for moneda, precio in precios.items():
             historial[moneda].append(precio)
             precio_inicial[moneda] = precio
 
-    
         while True:
-            clear_screen()
             precios = fetch_coingecko(ids)
-            
-            if precios == None: raise Exception;
-            
+
+            if precios is None:
+                print("No se pudieron actualizar los precios.")
+                time.sleep(5)
+                continue
+
             clear_screen()
-            
-            now = time.strftime("%d/%m/%Y %H:%M:%S", time.localtime())
-            print(f"=== Monitor de criptomonedas - {now} ===")
 
-            for moneda, precio_str in precios.items():
+            now = time.strftime("%d/%m/%Y %H:%M:%S")
+            print(f"=== Monitor de Criptomonedas - {now} ===\n")
+
+            for moneda, precio_actual in precios.items():
                 cola = historial[moneda]
+                cola.append(precio_actual)
 
-                # Agregar nuevo precio (deque elimina automáticamente el más viejo)
-                cola.append(precio_str)
-
-                # Mostrar precio actual
-
-                # Inicializar columnas
                 variacion_str = ""
                 alerta_str = ""
 
                 if len(cola) > 1:
                     precio_antiguo = cola[0]
-                    variacion = ((precio_str - precio_antiguo) / precio_antiguo) * 100
+                    variacion = ((precio_actual - precio_antiguo) / precio_antiguo) * 100
+                    if variacion > 0:
+                        variacion_str = (
+                            f"{Fore.GREEN}"
+                            f"↑{variacion:+7.2f}%"
+                            f"{Style.RESET_ALL}"
+                        )
 
-                    # Columna variación
-                    if variacion >= 0.05:
-                        variacion_str = Fore.GREEN + f"↑ {variacion:+6.2f}%" + Style.RESET_ALL
-                    elif variacion <= -0.05:
-                        variacion_str = Fore.RED + f"↓ {variacion:+6.2f}%" + Style.RESET_ALL
+                    elif variacion < 0:
+                        variacion_str = (
+                            f"{Fore.RED}"
+                            f"↓{variacion:+7.2f}%"
+                            f"{Style.RESET_ALL}"
+                        )
+
                     else:
-                        variacion_str = f"→ {variacion:+6.2f}%"
+                        variacion_str = (
+                            f"→{variacion:+7.2f}%"
+                        )
 
-                    # Columna alerta
                     if abs(variacion) >= umbral:
                         alertas[moneda] += 1
 
                         if variacion > 0:
-                            alerta_str = Fore.GREEN + f"▲ ALERTA: subida superior al {umbral}%" + Style.RESET_ALL
-                        elif variacion < 0:
-                            alerta_str = Fore.RED + f"▼ ALERTA: bajada superior al {umbral}%" + Style.RESET_ALL
+                            alerta_str = (
+                                f"{Fore.GREEN}"
+                                f"▲ ALERTA: subida superior al {umbral}%"
+                                f"{Style.RESET_ALL}"
+                            )
+                        else:
+                            alerta_str = (
+                                f"{Fore.RED}"
+                                f"▼ ALERTA: bajada superior al {umbral}%"
+                                f"{Style.RESET_ALL}"
+                            )
+                    # Cada consulta ocurre cada 30 segundos
+                    tiempo_str = ""
 
-                # Imprimir fila alineada
-                print(f"{moneda:<12} {':':>3} {precio_str:>10} {variacion_str:>15} {alerta_str:>33}")
+                    if len(cola) > 1:
+                        # Número de intervalos entre el primer y último precio
+                        segundos = (len(cola) - 1) * intervalo_request
 
-            print("Actualizando en 30 segundos... (Ctrl+C para salir)")
-            time.sleep(30)
+                        if segundos >= 60:
+                            minutos = segundos // 60
+                            tiempo_str = f"(vs hace {minutos} min)"
+                        else:
+                            tiempo_str = f"(vs hace {segundos} seg)"
+                print(
+                    f"{moneda:<15}"
+                    f"{":":>2}"
+                    f" USD {precio_actual:>15,.6f}   "
+                    f"{variacion_str:>2} {tiempo_str}"
+                    f" {alerta_str}"
+                )
+
+            print(f"\nActualizando en {intervalo_request} segundos... (Ctrl+C para salir)")
+            time.sleep(intervalo_request)
 
     except KeyboardInterrupt:
-        clear_screen()
-        print("Resumen final:\n")
+        imprimir_resumen(historial, precio_inicial, alertas)
 
-        for moneda, cola in historial.items():
-            inicial = precio_inicial[moneda]
-            final = cola[-1]
-            variacion_total = ((final - inicial) / inicial) * 100
+    except ValueError:
+        print("Debe ingresar un número válido para el umbral.")
 
-            print(f"{moneda}:")
-            print(f"  Precio inicial: ${inicial:,}")
-            print(f"  Precio final: ${final:,}")
-            print(f"  Variación total: {variacion_total:.2f}%")
-            print(f"  Alertas: {alertas[moneda]}")
-            print("-" * 40)
-    except:
-        print("Ocurrió un error, cerrando Programa...")
-            
+    except Exception as e:
+        print(f"Error inesperado: {e}")
+
+
 if __name__ == "__main__":
     main()
