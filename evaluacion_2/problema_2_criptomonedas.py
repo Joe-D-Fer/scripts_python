@@ -173,7 +173,7 @@ def main():
                     else:
                         variacion_str = f"→ {variacion:+6.2f}%"
 
-                    # --- COLUMNA ALERTA (SOLO SI SUPERA UMBRAL) ---
+                    # Columna alerta
                     if abs(variacion) >= umbral:
                         alertas[moneda] += 1
 
@@ -183,7 +183,7 @@ def main():
                             alerta_str = Fore.RED + f"▼ ALERTA: bajada superior al {umbral}%" + Style.RESET_ALL
 
                 # Imprimir fila alineada
-                print(f"{moneda:<12} {':':>3} {precio_str:>10} {variacion_str:>15} {alerta_str:>30}")
+                print(f"{moneda:<12} {':':>3} {precio_str:>10} {variacion_str:>15} {alerta_str:>33}")
 
             print("Actualizando en 30 segundos... (Ctrl+C para salir)")
             time.sleep(30)
