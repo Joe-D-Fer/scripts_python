@@ -1,0 +1,6 @@
+nombre;precio;stock
+leche;1200;50
+pan;300;200
+jugo;950;30
+aceite;2500;15
+arroz;800;15
