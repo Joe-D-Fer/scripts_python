@@ -2,10 +2,6 @@ import os
 import subprocess
 # ------------------ FUNCIONES ------------------
 
-def clear_screen():
-    command = "cls" if os.name == "nt" else "clear"
-    subprocess.run(command, shell=True)
-
 
 def cargar_inventario():
     global nombres, precios, stocks
@@ -31,7 +27,8 @@ def cargar_inventario():
                     
                 except ValueError:
                     print(f"Error de formato en la línea {num_linea}: '{linea.strip()}'")
-                    
+        cantidad = len(nombres)
+        print(f"\nInventario cargado correctamente. Se encontraron {cantidad} productos.")            
         
     except FileNotFoundError:
         print("Error: El archivo 'inventario.txt' no existe.")
@@ -252,9 +249,8 @@ def confirmar_salida():
 
 def main():
     while True:
-        clear_screen()
         
-        print("=== SISTEMA MINIMARKET ===")
+        print("\n=== SISTEMA MINIMARKET ===")
         print("1. Cargar inventario desde archivo")
         print("2. Registrar venta")
         print("3. Ver inventario actual")
@@ -266,7 +262,7 @@ def main():
 
         if opcion == "1":
             cargar_inventario()
-            input("\nInventario cargado correctamente.\nPresione ENTER para continuar...")
+            input("\nPresione ENTER para continuar...")
         elif opcion == "2":
             registrar_venta()
             input("Presione ENTER para continuar...")
