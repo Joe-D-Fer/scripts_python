@@ -1,150 +1,288 @@
 import os
+import subprocess
 # ------------------ FUNCIONES ------------------
 
+def clear_screen():
+    command = "cls" if os.name == "nt" else "clear"
+    subprocess.run(command, shell=True)
+
+
 def cargar_inventario():
-    global inventario
+    global nombres, precios, stocks
     try:
         with open("inventario.txt", "r") as f:
-            inventario = []
-            for linea in f:
-                nombre, precio, stock = linea.strip().split(";")
-                inventario.append({
-                    "nombre": nombre,
-                    "precio": float(precio),
-                    "stock": int(stock)
-                })
-        print("Inventario cargado correctamente")
-    except:
-        print("Error al cargar inventario")
-    input("Presione ENTER para continuar...")
+            # Saltamos la primera línea (encabezado)
+            next(f) 
+            
+            # Reiniciamos las listas para evitar duplicados si se llama la función varias veces
+            nombres = []
+            precios = []
+            stocks = []
+            
+            for num_linea, linea in enumerate(f, start=2):
+                try:
+                    # Separamos los datos por el punto y coma
+                    nombre, precio, stock = linea.strip().split(";")
+                    
+                    # Agregamos cada dato a su lista correspondiente
+                    nombres.append(nombre)
+                    precios.append(float(precio))
+                    stocks.append(int(stock))
+                    
+                except ValueError:
+                    print(f"Error de formato en la línea {num_linea}: '{linea.strip()}'")
+                    
+        
+    except FileNotFoundError:
+        print("Error: El archivo 'inventario.txt' no existe.")
+    except PermissionError:
+        print("Error: No tienes permisos para leer 'inventario.txt'.")
+    except Exception as e:
+        print(f"Ocurrió un error inesperado: {e}")
 
 
 def ver_inventario():
-    os.system("cls" if os.name == "nt" else "clear")
-    print("INVENTARIO")
-    print("-----------")
-
-    if not inventario:
-        print("Inventario vacío")
+    global nombres, precios, stocks
+    
+    print("\n" + "="*50)
+    print(f"{'N°':<3} | {'PRODUCTO':<20} | {'PRECIO':<12} | {'STOCK':<10}")
+    print("-" * 50)
+    
+    # Verificamos si hay productos cargados
+    if not nombres:
+        print("El inventario está vacío.")
     else:
-        for p in inventario:
-            print(f"{p['nombre']} - ${p['precio']} - Stock: {p['stock']}")
-
-    input("\nPresione ENTER para continuar...")
+        # Recorremos las listas usando el índice
+        for i in range(len(nombres)):
+            nombre = nombres[i]
+            precio = f"${precios[i]:,.0f}"
+            
+            # Lógica para la etiqueta [AGOTADO]
+            if stocks[i] == 0:
+                stock_display = "[AGOTADO]"
+            else:
+                stock_display = str(stocks[i])
+            
+            # Formateamos la línea con alineación
+            print(f"{i+1:<3} | {nombre.capitalize():<20} | {precio:<12} | {stock_display:<10}")
+    
+    print("="*50)
 
 
 def registrar_venta():
-    global ventas_dia
-
-    if not inventario:
-        print("Debe cargar el inventario primero")
-        input("ENTER para continuar...")
-        return
-
-    print("\nPRODUCTOS DISPONIBLES")
-    print("----------------------")
-
-    for i, p in enumerate(inventario):
-        print(f"{i+1}. {p['nombre']} (${p['precio']}) Stock: {p['stock']}")
-
-    try:
-        opcion = int(input("\nSeleccione producto: "))
-        if opcion < 1 or opcion > len(inventario):
-            print("Opción inválida")
-            input("ENTER...")
+    global nombres, precios, stocks
+    global productos_vendidos, cantidades_vendidas, subtotales
+    global cerrar_caja_flag
+    
+    print("\n--- REGISTRAR VENTA ---")
+    busqueda = input("Ingrese el nombre del producto: ").strip().lower()
+    
+    # 1. Buscar el producto (sin distinguir mayúsculas/minúsculas)
+    indice_encontrado = -1
+    for i in range(len(nombres)):
+        if nombres[i].lower() == busqueda:
+            indice_encontrado = i
+            break
+    
+    # 2. Validar existencia
+    if indice_encontrado == -1:
+        print(f"Error: El producto '{busqueda}' no existe en el inventario.")
+    else:
+        if stocks[indice_encontrado] == 0:
+            print(f"El producto '{nombres[indice_encontrado]}' está agotado.")
+            input("Presione ENTER para continuar...")
             return
+        # 3. Si existe, pedir cantidad
+        try:
+            cantidad = int(input(f"Cantidad deseada (Stock actual: {stocks[indice_encontrado]}): "))
+            
+            if cantidad <= 0:
+                print("Error: La cantidad debe ser mayor a cero.")
+                return
 
-        cantidad = int(input("Cantidad: "))
-        if cantidad <= 0:
-            print("Cantidad inválida")
-            input("ENTER...")
-            return
+            # 4. Validar stock
+            if cantidad > stocks[indice_encontrado]:
+                print(f"Error: Stock insuficiente. El stock actual es de {stocks[indice_encontrado]} unidades.")
+            else:
+                # 5. Procesar venta
+                # Descontar stock
+                stocks[indice_encontrado] -= cantidad
+                
+                # Calcular subtotal
+                precio_unitario = precios[indice_encontrado]
+                subtotal = precio_unitario * cantidad
+                
+                # Registrar en listas de ventas
+                productos_vendidos.append(nombres[indice_encontrado])
+                cantidades_vendidas.append(cantidad)
+                subtotales.append(subtotal)
 
-        producto = inventario[opcion - 1]
+                # Si se había cerrado caja antes, ahora hay ventas nuevas sin guardar
+                cerrar_caja_flag = False
+                
+                # 6. Mostrar boleta simple
+                print("\n" + "="*30)
+                print("        BOLETA DE VENTA")
+                print("="*30)
+                print(f"Producto:    {nombres[indice_encontrado].capitalize()}")
+                print(f"Cantidad:    {cantidad}")
+                print(f"Precio Unit: ${precio_unitario:,.0f}")
+                print("-" * 30)
+                print(f"Subtotal:       ${subtotal:,.0f}")
+                print("="*30)
 
-        if cantidad > producto["stock"]:
-            print("Stock insuficiente")
-        else:
-            total = cantidad * producto["precio"]
-            producto["stock"] -= cantidad
-
-            ventas_dia.append({
-                "nombre": producto["nombre"],
-                "cantidad": cantidad,
-                "total": total
-            })
-
-            print(f"Venta realizada. Total: ${total}")
-
-    except:
-        print("Error en los datos ingresados")
-
-    input("Presione ENTER para continuar...")
+                
+                
+        except ValueError:
+            print("Error: Debe ingresar un número entero para la cantidad.")
 
 
 def ver_resumen():
-    print("\nRESUMEN DEL DÍA")
-    print("----------------")
-
-    total_general = 0
-
-    if not ventas_dia:
-        print("No hay ventas registradas")
+    global productos_vendidos, cantidades_vendidas, subtotales
+    
+    print("\n" + "="*50)
+    print(f"{'VENTAS DEL DÍA':^50}") # Título centrado
+    print("="*50)
+    
+    # 1. Verificar si hay ventas registradas
+    if not productos_vendidos:
+        print("\n   Aún no se han registrado ventas.\n")
     else:
-        for v in ventas_dia:
-            print(f"{v['nombre']} x{v['cantidad']} = ${v['total']}")
-            total_general += v["total"]
-
-        print("----------------")
-        print(f"TOTAL: ${total_general}")
-
-    input("\nPresione ENTER para continuar...")
+        print(f"{'N°':<3} | {'PRODUCTO':<20} | {'CANTIDAD':<10} | {'SUBTOTAL':<12}")
+        print("-" * 50)
+        
+        total_recaudado = 0
+        
+        # 2. Recorrer las listas de ventas
+        for i in range(len(productos_vendidos)):
+            producto = productos_vendidos[i]
+            cantidad = cantidades_vendidas[i]
+            subtotal = subtotales[i]
+            
+            # Acumulamos para el total general
+            total_recaudado += subtotal
+            
+            # Imprimimos la fila de la tabla
+            print(f"{i+1:<3} | {producto.capitalize():<20} | {cantidad:<10} | ${subtotal:<12,.0f}")
+        
+        # 3. Mostrar el total recaudado al final
+        print("-" * 50)
+        print(f"{'TOTAL RECAUDADO:':<33} ${total_recaudado:,.0f}")
+    
+    print("="*50)
 
 
 def cerrar_caja():
-    total_general = 0
+    global productos_vendidos, cantidades_vendidas, subtotales
+    global cerrar_caja_flag
+    
+    # 1. Verificar si hubo ventas antes de generar el archivo
+    if not productos_vendidos:
+        print("\nNo se puede cerrar caja: No hay ventas registradas hoy.")
+        return
 
-    with open("resumen_dia.txt", "w") as f:
-        for v in resumen_dia:
-            linea = f"{v['nombre']},{v['cantidad']},{v['total']}\n"
-            f.write(linea)
-            total_general += v["total"]
+    try:
+        with open("resumen_dia.txt", "w", encoding="utf-8") as f:
+            # Escribir encabezados en el archivo
+            f.write("="*50 + "\n")
+            f.write(f"{'RESUMEN DE VENTAS DEL DÍA':^50}\n")
+            f.write("="*50 + "\n")
+            f.write(f"{'N°':<3} | {'PRODUCTO':<20} | {'CANTIDAD':<10} | {'SUBTOTAL':<12}\n")
+            f.write("-" * 50 + "\n")
+            
+            total_recaudado = 0
+            
+            # 2. Recorrer las listas y escribir cada línea
+            for i in range(len(productos_vendidos)):
+                producto = productos_vendidos[i]
+                cantidad = cantidades_vendidas[i]
+                subtotal = subtotales[i]
+                total_recaudado += subtotal
+                
+                f.write(f"{i+1:<3} | {producto.capitalize():<20} | {cantidad:<10} | ${subtotal:<12,.0f}\n")
+            
+            # 3. Escribir el total final
+            f.write("-" * 50 + "\n")
+            f.write(f"{'TOTAL RECAUDADO:':<33} ${total_recaudado:,.0f}\n")
+            f.write("="*50 + "\n")
 
-        f.write(f"TOTAL,{total_general}")
+        cerrar_caja_flag = True  # Indicamos que se ha cerrado caja    
+        print("\nCaja cerrada. Resumen guardado en 'resumen_dia.txt'")
+        
+    except Exception as e:
+        print(f"Error al guardar el archivo: {e}")
+    
 
-    print("Caja cerrada y guardada correctamente")
-    input("Presione ENTER para continuar...")
+def confirmar_salida():
+    global productos_vendidos, cerrar_caja_flag
+    
+    # Caso 1: No hay ventas o la caja ya se cerró
+    if not productos_vendidos or cerrar_caja_flag:
+        print("\nSaliendo del sistema...")
+        return True
+
+    # Caso 2: Hay ventas sin guardar
+    print("\n" + "!"*45)
+    print(" ADVERTENCIA: Hay ventas que no se han guardado.")
+    print("!"*45)
+    
+    while True:
+        res = input("¿Desea cerrar caja antes de salir? (s/n/cancelar): ").lower().strip()
+        
+        if res == "s":
+            cerrar_caja()
+            return True # Sale después de guardar
+        
+        elif res == "n":
+            confirmar = input("¿Está SEGURO de que desea salir sin guardar? (s/n): ").lower().strip()
+            if confirmar == "s":
+                print("Saliendo sin guardar...")
+                return True
+            else:
+                return False # El usuario se arrepintió, vuelve al menú
+        
+        elif res == "cancelar":
+            return False # Regresa al menú
+        
+        else:
+            print("Opción no válida. Escriba 's', 'n' o 'cancelar'.")
 
 
 # ------------------ MENÚ PRINCIPAL ------------------
 
 def main():
     while True:
-        os.system("cls" if os.name == "nt" else "clear")
-
+        clear_screen()
+        
         print("=== SISTEMA MINIMARKET ===")
         print("1. Cargar inventario desde archivo")
         print("2. Registrar venta")
-        print("3. Ver inventario")
-        print("4. Ver resumen del día")
-        print("5. Cerrar caja y guardar")
+        print("3. Ver inventario actual")
+        print("4. Ver resumen de ventas del día")
+        print("5. Cerrar caja y guardar resumen")
         print("0. Salir")
 
         opcion = input("Seleccione una opción: ")
 
         if opcion == "1":
             cargar_inventario()
+            input("\nInventario cargado correctamente.\nPresione ENTER para continuar...")
         elif opcion == "2":
             registrar_venta()
+            input("Presione ENTER para continuar...")
         elif opcion == "3":
             ver_inventario()
+            input("\nPresione ENTER para continuar...")
         elif opcion == "4":
             ver_resumen()
+            input("\nPresione ENTER para continuar...")
         elif opcion == "5":
             cerrar_caja()
+            input("\nPresione ENTER para continuar...")
         elif opcion == "0":
-            print("Saliendo del sistema...")
-            break
+            if confirmar_salida():
+                print("\n¡Hasta luego!")
+                break # Rompe el ciclo while True y termina el programa
         else:
             print("Opción inválida")
             input("Presione ENTER para continuar...")
@@ -152,6 +290,14 @@ def main():
 
 # ------------------ EJECUCIÓN ------------------
 if __name__ == "__main__":
-    inventario = []
+    # Listas globales para almacenar datos
+    nombres = []
+    precios = []
+    stocks = []
+    productos_vendidos = []
+    cantidades_vendidas = []
+    subtotales = []
     resumen_dia = []
+    cerrar_caja_flag = False # flag para controlar el cierre de caja
+    cargar_inventario() # Cargamos el inventario al iniciar el programa
     main()
