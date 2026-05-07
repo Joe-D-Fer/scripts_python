@@ -18,13 +18,16 @@ def pedir_entero(mensaje, minimo=None, maximo=None):
     """
     Solicita al usuario un número entero validado.
 
+    Repite la solicitud hasta que el usuario ingrese un valor válido,
+    respetando límites mínimo y máximo si están definidos.
+
     Args:
-        mensaje (str): Texto que se mostrará al solicitar el dato.
-        minimo (int, opcional): Valor mínimo permitido.
-        maximo (int, opcional): Valor máximo permitido.
+        mensaje (str): Texto mostrado al usuario.
+        minimo (int, optional): Valor mínimo permitido.
+        maximo (int, optional): Valor máximo permitido.
 
     Returns:
-        int: Número entero validado ingresado por el usuario.
+        int: Número entero válido ingresado por el usuario.
     """
 
     while True:
